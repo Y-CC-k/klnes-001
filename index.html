@@ -3,14 +3,31 @@
   <head>
     <meta charset="utf-8">
     <title>班級點名與加分系統載入中...</title>
-    <!-- HTML 自動轉址 (0秒後自動跳轉) -->
-    <meta http-equiv="refresh" content="0; url=https://script.google.com/a/macros/st.tc.edu.tw/s/AKfycbzfNStNehiIZw9KQtvHTuoNIwgGs28MKFpzqwup_tI9bcyMh-VwE5Vrlq5R9jUJEvAp/exec">
+    
     <script>
-      // JavaScript 自動跳轉備案
-      window.location.href = "https://script.google.com/macros/s/AKfycbzTC6bkGz9Con2AAyYpN5PvL40iAccD0-L2uwabSbY0GiuQAeBpru0anrHSEzcl1bgz/exec";
+      // 1. 在此處統一設定目標網址（修改此處即可）
+      const redirectUrl = "https://script.google.com/a/macros/st.tc.edu.tw/s/AKfycbwRvVtbXHkLIxogC-I7xgwuFi9GBQYqgkgH6jRrkmxoU6D9AqdaSFBH2mlMbO1KI-c1/exec";
+
+      // 2. JavaScript 自動跳轉
+      window.location.href = redirectUrl;
+
+      // 3. 當網頁載入完成後，動態將網址套用到超連結與 <meta refresh> 備案
+      document.addEventListener("DOMContentLoaded", function() {
+        // 設定超連結 href
+        const link = document.getElementById("redirectLink");
+        if (link) {
+          link.href = redirectUrl;
+        }
+
+        // 動態插入 meta refresh 作為備案（針對關閉 JS 的瀏覽器）
+        const meta = document.createElement("meta");
+        meta.httpEquiv = "refresh";
+        meta.content = "0; url=" + redirectUrl;
+        document.head.appendChild(meta);
+      });
     </script>
   </head>
   <body>
-    <p>正在前往點名系統，請稍候... 如果沒有自動跳轉，請<a href="https://script.google.com/macros/s/AKfycbzTC6bkGz9Con2AAyYpN5PvL40iAccD0-L2uwabSbY0GiuQAeBpru0anrHSEzcl1bgz/exec">點擊此處</a>。</p>
+    <p>正在前往點名系統，請稍候... 如果沒有自動跳轉，請<a id="redirectLink" href="#">點擊此處</a>。</p>
   </body>
 </html>
