@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/common.js"></script>
+    <style>
+      :root {
+        --primary-color: #2e7d32;
+        --primary-dark: #1b5e20;
+        --primary-light: #e8f5e9;
+        --primary-border: #a5d6a7;
+        --bg-present: #e8f5e9; --color-present: #1b5e20; --border-present: #4caf50;
+        --bg-late: #fff9c4;    --color-late: #f57f17;    --border-late: #fbc02d;
+        --bg-leave: #e3f2fd;   --color-leave: #0d47a1;   --border-leave: #2196f3;
+        --bg-absent: #ffebee;  --color-absent: #b71c1c;  --border-absent: #f44336;
+      }
+
+      * { box-sizing: border-box; touch-action: manipulation; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 12px; background-color: #f0f2f5; max-width: 1200px; margin: 0 auto;
+      }
+
+      .login-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px;
+      }
+
+      .login-card {
+        background: white; padding: 25px 20px; border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 100%; max-width: 320px;
+      }
+
+      .login-card h3 { margin: 0 0 15px 0; color: #222; font-size: 20px; }
+      .login-input { width: 100%; padding: 12px; margin-bottom: 12px; font-size: 16px; border: 2px solid #ccc; border-radius: 8px; }
+      .login-card button { width: 100%; padding: 12px; font-size: 16px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+      .control-panel {
+        background: white; padding: 10px 14px; border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px;
+      }
+
+      .single-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+      }
+
+      select.nav-select {
+        background-color: var(--primary-light); color: var(--primary-dark);
+        border: 2px solid var(--primary-border); font-weight: bold; font-size: 15px;
+        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 110px;
+      }
+
+      .teacher-tag {
+        color: var(--primary-dark); font-weight: bold; background-color: var(--primary-light);
+        padding: 6px 10px; border-radius: 8px; font-size: 14px; border: 1.5px solid var(--primary-border);
+        white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+      }
+
+      select, button.action-btn {
+        padding: 6px 12px; font-size: 15px; border-radius: 8px; border: 2px solid #ccc; height: 40px; font-weight: bold;
+      }
+
+      select { background-color: white; cursor: pointer; flex: 1; min-width: 100px; }
+
+      .action-btn {
+        color: white; border: none; cursor: pointer; font-weight: bold;
+        white-space: nowrap; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px;
+      }
+
+      .btn-attendance { background-color: var(--primary-color); }
+      .btn-update { background-color: #f57c00; }
+      .btn-logout { background-color: #757575; padding: 6px 10px; border: none; }
+
+      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+      .card {
+        background: white; border: 3px solid #b0bec5; border-radius: 12px; padding: 12px 8px;
+        text-align: center; cursor: pointer; user-select: none; transition: all 0.15s;
+        display: flex; flex-direction: column; justify-content: space-between; min-height: 115px;
+      }
+      .card:active { transform: scale(0.96); }
+      .card .name { font-size: 18px; font-weight: bold; margin-bottom: 2px; color: #111; }
+      .card .seat { font-size: 13px; color: #555; margin-bottom: 6px; font-weight: 600; }
+
+      .status-badge { display: inline-block; padding: 5px 12px; font-size: 14px; font-weight: bold; border-radius: 20px; }
+      .status-出席 { background: var(--bg-present); border-color: var(--border-present); color: var(--color-present); }
+      .status-出席 .status-badge { background: #4caf50; color: white; }
+      .status-遲到 { background: var(--bg-late); border-color: var(--border-late); color: var(--color-late); }
+      .status-遲到 .status-badge { background: #fbc02d; color: #333; }
+      .status-請假 { background: var(--bg-leave); border-color: var(--border-leave); color: var(--color-leave); }
+      .status-請假 .status-badge { background: #2196f3; color: white; }
+      .status-缺席 { background: var(--bg-absent); border-color: var(--border-absent); color: var(--color-absent); }
+      .status-缺席 .status-badge { background: #f44336; color: white; }
+
+      @media (max-width: 600px) {
+        .grid-container { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .card { padding: 8px 4px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="loginOverlay" class="login-overlay">
+      <div class="login-card">
+        <h3><i class="fa-solid fa-user-lock"></i> 教師身分驗證</h3>
+        <input type="text" id="accountInput" class="login-input" placeholder="請輸入帳號" autocomplete="off">
+        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼" onkeypress="if(event.key==='Enter') verifyLogin()">
+        <button id="loginBtn" onclick="verifyLogin()"><i class="fa-solid fa-right-to-bracket"></i> 登入系統</button>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="single-row">
+        <select class="nav-select" onchange="navigateToPage(this.value)">
+          <option value="Attendance" selected>📋 點名專區</option>
+          <option value="Points">⭐ 加分專區</option>
+          <option value="Picker">🎲 抽籤專區</option>
+          <option value="SeatMap">🪑 座位表</option>
+        </select>
+
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+          <span id="teacherNameDisplay" class="teacher-tag" style="display: none;"></span>
+          <select id="classSelect" onchange="loadMembers()">
+            <option value="">-- 請先登入 --</option>
+          </select>
+        </div>
+
+        <button id="submitBtn" class="action-btn btn-attendance" onclick="submitData()">
+          <i class="fa-solid fa-paper-plane"></i> 提交
+        </button>
+        <button id="logoutBtn" class="action-btn btn-logout" title="登出" onclick="logout()" style="display:none;">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="gridContainer" class="grid-container"></div>
+
+    <script>
+      const STATUS_CYCLE = ['出席', '遲到', '請假', '缺席'];
+      let currentMembers = [];
+      let userAccount = '';
+      let userPassword = '';
+      let isTodayRecorded = false;
+
+      async function loadMembers() {
+        const selectedClass = document.getElementById('classSelect').value;
+        const container = document.getElementById('gridContainer');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (!selectedClass) return container.innerHTML = '';
+
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> 載入資料中...</div>';
+
+        try {
+          const members = await getMembersByClass(selectedClass);
+          currentMembers = members;
+          isTodayRecorded = members.some(m => m.hasTodayRecord);
+
+          if (isTodayRecorded) {
+            submitBtn.className = 'action-btn btn-update';
+            submitBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> 更新點名';
+          } else {
+            submitBtn.className = 'action-btn btn-attendance';
+            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> 提交點名';
+          }
+
+          renderGrid();
+        } catch (e) {
+          alert('載入失敗：' + e.message);
+        }
+      }
+
+      function renderGrid() {
+        const container = document.getElementById('gridContainer');
+        container.innerHTML = '';
+
+        if (currentMembers.length === 0) {
+          container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999; padding: 20px;">該班別無人員資料</div>';
+          return;
+        }
+
+        currentMembers.forEach((m) => {
+          const card = document.createElement('div');
+          card.className = `card status-${m.status}`;
+          card.onclick = () => {
+            const nextIndex = (STATUS_CYCLE.indexOf(m.status) + 1) % STATUS_CYCLE.length;
+            m.status = STATUS_CYCLE[nextIndex];
+            renderGrid();
+          };
+          card.innerHTML = `
+            <div>
+              <div class="name">${m.name}</div>
+              <div class="seat">${m.seatNo ? m.seatNo + '號' : ''}</div>
+            </div>
+            <div><div class="status-badge">${m.status}</div></div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      async function submitData() {
+        if (currentMembers.length === 0) return alert('請先選擇班別！');
+
+        const confirmMsg = isTodayRecorded
+          ? '今日已有點名紀錄，是否確認「更新」提交最新紀錄？'
+          : '確認提交這批點名紀錄？';
+
+        if (!confirm(confirmMsg)) return;
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 處理中...';
+
+        try {
+          const res = await submitBatchAttendance(currentMembers);
+          submitBtn.disabled = false;
+          alert(`成功寫入 ${res.count} 筆點名紀錄！`);
+          loadMembers();
+        } catch (err) {
+          submitBtn.disabled = false;
+          alert('提交失敗：\n' + err.message);
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/common.js"></script>
+    <style>
+      :root {
+        --primary-color: #7b1fa2;
+        --primary-dark: #4a148c;
+        --primary-light: #f3e5f5;
+        --primary-border: #e1bee7;
+      }
+
+      * { box-sizing: border-box; touch-action: manipulation; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 12px; background-color: #f0f2f5; max-width: 1200px; margin: 0 auto;
+      }
+
+      .login-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px;
+      }
+
+      .login-card {
+        background: white; padding: 25px 20px; border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 100%; max-width: 320px;
+      }
+
+      .login-card h3 { margin: 0 0 15px 0; color: #222; font-size: 20px; }
+      .login-input { width: 100%; padding: 12px; margin-bottom: 12px; font-size: 16px; border: 2px solid #ccc; border-radius: 8px; }
+      .login-card button { width: 100%; padding: 12px; font-size: 16px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+      .control-panel {
+        background: white; padding: 10px 14px; border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px;
+      }
+
+      .single-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+      }
+
+      select.nav-select {
+        background-color: var(--primary-light); color: var(--primary-dark);
+        border: 2px solid var(--primary-border); font-weight: bold; font-size: 15px;
+        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 110px;
+      }
+
+      .teacher-tag {
+        color: var(--primary-dark); font-weight: bold; background-color: var(--primary-light);
+        padding: 6px 10px; border-radius: 8px; font-size: 14px; border: 1.5px solid var(--primary-border);
+        white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+      }
+
+      select, button.action-btn {
+        padding: 6px 12px; font-size: 15px; border-radius: 8px; border: 2px solid #ccc; height: 40px; font-weight: bold;
+      }
+
+      select { background-color: white; cursor: pointer; flex: 1; min-width: 100px; }
+
+      .action-btn {
+        color: white; border: none; cursor: pointer; font-weight: bold;
+        white-space: nowrap; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px;
+      }
+
+      .btn-logout { background-color: #757575; padding: 6px 10px; border: none; }
+
+      .stage-container {
+        background: white; border-radius: 16px; padding: 25px 15px; text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px; border: 3px solid var(--primary-border);
+      }
+
+      .winner-card {
+        background: var(--primary-light); border: 4px solid var(--primary-color); border-radius: 16px;
+        padding: 20px; display: inline-block; width: 100%; max-width: 320px;
+        transition: all 0.2s ease-in-out;
+      }
+
+      .winner-card.highlight {
+        animation: pulse 0.6s infinite alternate; background: #ea80fc; border-color: var(--primary-dark); color: white;
+      }
+
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        100% { transform: scale(1.05); }
+      }
+
+      .winner-card .seat { font-size: 18px; font-weight: bold; color: #6a1b9a; margin-bottom: 5px; }
+      .winner-card .name { font-size: 36px; font-weight: 900; color: var(--primary-dark); margin-bottom: 10px; }
+      .winner-card.highlight .seat, .winner-card.highlight .name { color: white; }
+
+      .start-btn {
+        background: var(--primary-color); color: white; font-size: 20px; font-weight: bold;
+        padding: 12px 36px; border-radius: 30px; border: none; cursor: pointer;
+        box-shadow: 0 4px 10px rgba(123, 31, 162, 0.3); transition: transform 0.1s; margin-top: 15px;
+      }
+      .start-btn:active { transform: scale(0.95); background: var(--primary-dark); }
+      .start-btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+
+      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+      .card {
+        background: white; border: 2px solid #b0bec5; border-radius: 10px; padding: 10px 6px;
+        text-align: center; user-select: none; transition: all 0.15s;
+      }
+      .card.active-target {
+        background: #ea80fc; border-color: var(--primary-color); color: white; transform: scale(1.05); font-weight: bold;
+      }
+      .card .name { font-size: 16px; font-weight: bold; }
+      .card .seat { font-size: 12px; color: #666; }
+      .card.active-target .seat { color: #f3e5f5; }
+
+      @media (max-width: 600px) {
+        .grid-container { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="loginOverlay" class="login-overlay">
+      <div class="login-card">
+        <h3><i class="fa-solid fa-user-lock"></i> 教師身分驗證</h3>
+        <input type="text" id="accountInput" class="login-input" placeholder="請輸入帳號" autocomplete="off">
+        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼" onkeypress="if(event.key==='Enter') verifyLogin()">
+        <button id="loginBtn" onclick="verifyLogin()"><i class="fa-solid fa-right-to-bracket"></i> 登入系統</button>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="single-row">
+        <select class="nav-select" onchange="navigateToPage(this.value)">
+          <option value="Picker" selected>🎲 抽籤專區</option>
+          <option value="Attendance">📋 點名專區</option>
+          <option value="Points">⭐ 加分專區</option>
+          <option value="SeatMap">🪑 座位表</option>
+        </select>
+
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+          <span id="teacherNameDisplay" class="teacher-tag" style="display: none;"></span>
+          <select id="classSelect" onchange="loadMembers()">
+            <option value="">-- 請先登入 --</option>
+          </select>
+        </div>
+
+        <button id="logoutBtn" class="action-btn btn-logout" title="登出" onclick="logout()" style="display:none;">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="stage-container">
+      <div id="winnerCard" class="winner-card">
+        <div id="winnerSeat" class="seat">準備就緒</div>
+        <div id="winnerName" class="name">🎯 點擊抽籤</div>
+      </div>
+      <br>
+      <button id="drawBtn" class="start-btn" onclick="startPicker()" disabled>
+        <i class="fa-solid fa-shuffle"></i> 開始隨機抽問
+      </button>
+    </div>
+
+    <div id="gridContainer" class="grid-container"></div>
+
+    <script>
+      let currentMembers = [];
+      let isPicking = false;
+
+      async function loadMembers() {
+        const selectedClass = document.getElementById('classSelect').value;
+        const container = document.getElementById('gridContainer');
+        const drawBtn = document.getElementById('drawBtn');
+
+        if (!selectedClass) {
+          container.innerHTML = '';
+          drawBtn.disabled = true;
+          return;
+        }
+
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> 載入資料中...</div>';
+
+        try {
+          const members = await getMembersByClass(selectedClass);
+          currentMembers = members;
+          drawBtn.disabled = currentMembers.length === 0;
+          renderGrid();
+        } catch (e) {
+          alert('載入失敗：' + e.message);
+        }
+      }
+
+      function renderGrid(activeIndex = -1) {
+        const container = document.getElementById('gridContainer');
+        container.innerHTML = '';
+
+        if (currentMembers.length === 0) {
+          container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999; padding: 20px;">該班別無人員資料</div>';
+          return;
+        }
+
+        currentMembers.forEach((m, idx) => {
+          const card = document.createElement('div');
+          card.className = `card ${idx === activeIndex ? 'active-target' : ''}`;
+          card.innerHTML = `
+            <div class="name">${m.name}</div>
+            <div class="seat">${m.seatNo ? m.seatNo + '號' : ''}</div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      function startPicker() {
+        if (isPicking || currentMembers.length === 0) return;
+
+        isPicking = true;
+        const drawBtn = document.getElementById('drawBtn');
+        const winnerCard = document.getElementById('winnerCard');
+        const winnerSeat = document.getElementById('winnerSeat');
+        const winnerName = document.getElementById('winnerName');
+
+        drawBtn.disabled = true;
+        winnerCard.classList.remove('highlight');
+
+        let speed = 50;
+        let counter = 0;
+        let totalSteps = Math.floor(Math.random() * 20) + 25;
+        let currentIndex = 0;
+
+        function step() {
+          currentIndex = Math.floor(Math.random() * currentMembers.length);
+          const currentPerson = currentMembers[currentIndex];
+
+          winnerSeat.innerText = currentPerson.seatNo ? `${currentPerson.seatNo}號` : '';
+          winnerName.innerText = currentPerson.name;
+
+          renderGrid(currentIndex);
+
+          counter++;
+          if (counter < totalSteps) {
+            speed += 12;
+            setTimeout(step, speed);
+          } else {
+            isPicking = false;
+            drawBtn.disabled = false;
+            winnerCard.classList.add('highlight');
+          }
+        }
+
+        step();
+      }
+    </script>
+  </body>
+</html>

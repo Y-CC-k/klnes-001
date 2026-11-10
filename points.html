@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/common.js"></script>
+    <style>
+      :root {
+        --primary-color: #0288d1;
+        --primary-dark: #01579b;
+        --primary-light: #e1f5fe;
+        --primary-border: #81d4fa;
+      }
+
+      * { box-sizing: border-box; touch-action: manipulation; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 12px; background-color: #f0f2f5; max-width: 1200px; margin: 0 auto;
+      }
+
+      .login-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px;
+      }
+
+      .login-card {
+        background: white; padding: 25px 20px; border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 100%; max-width: 320px;
+      }
+
+      .login-card h3 { margin: 0 0 15px 0; color: #222; font-size: 20px; }
+      .login-input { width: 100%; padding: 12px; margin-bottom: 12px; font-size: 16px; border: 2px solid #ccc; border-radius: 8px; }
+      .login-card button { width: 100%; padding: 12px; font-size: 16px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+      .control-panel {
+        background: white; padding: 10px 14px; border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px;
+      }
+
+      .single-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+      }
+
+      select.nav-select {
+        background-color: var(--primary-light); color: var(--primary-dark);
+        border: 2px solid var(--primary-border); font-weight: bold; font-size: 15px;
+        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 110px;
+      }
+
+      .teacher-tag {
+        color: var(--primary-dark); font-weight: bold; background-color: var(--primary-light);
+        padding: 6px 10px; border-radius: 8px; font-size: 14px; border: 1.5px solid var(--primary-border);
+        white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+      }
+
+      select, button.action-btn {
+        padding: 6px 12px; font-size: 15px; border-radius: 8px; border: 2px solid #ccc; height: 40px; font-weight: bold;
+      }
+
+      select { background-color: white; cursor: pointer; flex: 1; min-width: 100px; }
+
+      .action-btn {
+        color: white; border: none; cursor: pointer; font-weight: bold;
+        white-space: nowrap; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px;
+      }
+
+      .btn-points { background-color: var(--primary-color); }
+      .btn-logout { background-color: #757575; padding: 6px 10px; border: none; }
+
+      .reason-bar {
+        display: flex; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px;
+        border-top: 1px dashed #ddd; overflow-x: auto; white-space: nowrap;
+      }
+
+      .reason-tag {
+        background: #f0f0f0; border: 1.5px solid #ccc; padding: 5px 12px; font-size: 13px;
+        border-radius: 14px; cursor: pointer; font-weight: bold; color: #444; transition: all 0.15s;
+        display: inline-flex; align-items: center; gap: 3px;
+      }
+
+      .reason-tag.positive { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+      .reason-tag.negative { background: #ffebee; border-color: #ef9a9a; color: #c62828; }
+
+      .reason-tag.active {
+        background: var(--primary-color) !important; color: white !important;
+        border-color: var(--primary-dark) !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      }
+
+      .reason-input {
+        padding: 5px 10px; font-size: 13px; border: 1.5px solid #ccc; border-radius: 8px; min-width: 120px;
+      }
+
+      .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+      .card {
+        background: white; border: 3px solid #b0bec5; border-radius: 12px; padding: 12px 8px;
+        text-align: center; cursor: pointer; user-select: none; transition: all 0.15s;
+        display: flex; flex-direction: column; justify-content: space-between; min-height: 130px;
+      }
+      .card:active { transform: scale(0.96); }
+      .card .name { font-size: 18px; font-weight: bold; margin-bottom: 2px; color: #111; }
+      .card .seat { font-size: 13px; color: #555; margin-bottom: 4px; font-weight: 600; }
+      .card .card-reason { font-size: 12px; color: #0277bd; font-weight: bold; min-height: 18px; margin-bottom: 4px; }
+
+      .point-badge { display: inline-block; padding: 4px 8px; font-size: 13px; font-weight: bold; border-radius: 16px; background: #78909c; color: white; }
+
+      .card.p-5 { background-color: #b2ebf2; border-color: #00838f; }
+      .card.p-5 .point-badge { background-color: #00838f; color: white; }
+
+      .card.p-4 { background-color: #c8e6c9; border-color: #2e7d32; }
+      .card.p-4 .point-badge { background-color: #2e7d32; color: white; }
+
+      .card.p-3 { background-color: #f0f4c3; border-color: #558b2f; }
+      .card.p-3 .point-badge { background-color: #558b2f; color: white; }
+
+      .card.p-2 { background-color: #fff9c4; border-color: #fbc02d; }
+      .card.p-2 .point-badge { background-color: #f9a825; color: #222; }
+
+      .card.p-1 { background-color: #e8f5e9; border-color: #81c784; }
+      .card.p-1 .point-badge { background-color: #43a047; color: white; }
+
+      .card.m-1 { background-color: #ffebee; border-color: #e57373; }
+      .card.m-1 .point-badge { background-color: #e53935; color: white; }
+
+      .card.m-2 { background-color: #ffccbc; border-color: #f4511e; }
+      .card.m-2 .point-badge { background-color: #f4511e; color: white; }
+
+      .card.m-3 { background-color: #f8bbd0; border-color: #c2185b; }
+      .card.m-3 .point-badge { background-color: #c2185b; color: white; }
+
+      .card.m-4 { background-color: #e1bee7; border-color: #7b1fa2; }
+      .card.m-4 .point-badge { background-color: #7b1fa2; color: white; }
+
+      .card.m-5 { background-color: #311b92; border-color: #ea80fc; }
+      .card.m-5 .point-badge { background-color: #ea80fc; color: #311b92; }
+      .card.m-5 .name { color: #ffffff; }
+      .card.m-5 .seat { color: #ea80fc; }
+
+      .card .btn-group { display: flex; justify-content: space-between; margin-top: 5px; gap: 3px; }
+      .mini-btn { flex: 1; padding: 4px 0; font-size: 12px; font-weight: bold; background: white; border: 1px solid #aaa; border-radius: 6px; cursor: pointer; }
+
+      @media (max-width: 600px) {
+        .grid-container { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .card { padding: 8px 4px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="loginOverlay" class="login-overlay">
+      <div class="login-card">
+        <h3><i class="fa-solid fa-user-lock"></i> 教師身分驗證</h3>
+        <input type="text" id="accountInput" class="login-input" placeholder="請輸入帳號" autocomplete="off">
+        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼" onkeypress="if(event.key==='Enter') verifyLogin()">
+        <button id="loginBtn" onclick="verifyLogin()"><i class="fa-solid fa-right-to-bracket"></i> 登入系統</button>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="single-row">
+        <select class="nav-select" onchange="navigateToPage(this.value)">
+          <option value="Points" selected>⭐ 加分專區</option>
+          <option value="Attendance">📋 點名專區</option>
+          <option value="Picker">🎲 抽籤專區</option>
+          <option value="SeatMap">🪑 座位表</option>
+        </select>
+
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+          <span id="teacherNameDisplay" class="teacher-tag" style="display: none;"></span>
+          <select id="classSelect" onchange="loadMembers()">
+            <option value="">-- 請先登入 --</option>
+          </select>
+        </div>
+
+        <button id="submitBtn" class="action-btn btn-points" onclick="submitData()">
+          <i class="fa-solid fa-floppy-disk"></i> 提交
+        </button>
+        <button id="logoutBtn" class="action-btn btn-logout" title="登出" onclick="logout()" style="display:none;">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+
+      <div class="reason-bar">
+        <span style="font-size: 13px; font-weight: bold; color: #555;">事由：</span>
+        <span class="reason-tag positive active" onclick="selectPresetReason(this, '回答問題')">🙋‍♂️ 回答問題</span>
+        <span class="reason-tag positive" onclick="selectPresetReason(this, '作業優良')">📝 作業優良</span>
+        <span class="reason-tag positive" onclick="selectPresetReason(this, '課堂熱心')">❤️ 課堂熱心</span>
+        <span class="reason-tag positive" onclick="selectPresetReason(this, '小組討論')">👥 小組討論</span>
+        <span class="reason-tag positive" onclick="selectPresetReason(this, '表現優異')">👏 表現優異</span>
+        <span class="reason-tag negative" onclick="selectPresetReason(this, '課堂講話')">💬 課堂講話</span>
+        <span class="reason-tag negative" onclick="selectPresetReason(this, '不專心')">💤 不專心</span>
+        <span class="reason-tag negative" onclick="selectPresetReason(this, '遲到')">⏰ 遲到</span>
+        <span class="reason-tag negative" onclick="selectPresetReason(this, '未帶課本')">📚 未帶課本</span>
+        <span class="reason-tag negative" onclick="selectPresetReason(this, '缺交作業')">❌ 缺交作業</span>
+        <input type="text" id="customReasonInput" class="reason-input" placeholder="自訂事由..." oninput="onCustomReasonChange()">
+      </div>
+    </div>
+
+    <div id="gridContainer" class="grid-container"></div>
+
+    <script>
+      const MAX_POINTS = 5;
+      const MIN_POINTS = -5;
+      let currentMembers = [];
+      let selectedReason = '回答問題';
+
+      function selectPresetReason(element, reason) {
+        document.querySelectorAll('.reason-tag').forEach(tag => tag.classList.remove('active'));
+        element.classList.add('active');
+        document.getElementById('customReasonInput').value = '';
+        selectedReason = reason;
+      }
+
+      function onCustomReasonChange() {
+        const customVal = document.getElementById('customReasonInput').value.trim();
+        if (customVal) {
+          document.querySelectorAll('.reason-tag').forEach(tag => tag.classList.remove('active'));
+          selectedReason = customVal;
+        } else {
+          const firstTag = document.querySelector('.reason-tag');
+          if (firstTag) selectPresetReason(firstTag, '回答問題');
+        }
+      }
+
+      async function loadMembers() {
+        const selectedClass = document.getElementById('classSelect').value;
+        const container = document.getElementById('gridContainer');
+        if (!selectedClass) return container.innerHTML = '';
+
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> 載入資料中...</div>';
+
+        try {
+          const members = await getMembersByClass(selectedClass);
+          currentMembers = members.map(m => ({ ...m, points: 0, reason: '' }));
+          renderGrid();
+        } catch (e) {
+          alert('載入失敗：' + e.message);
+        }
+      }
+
+      function renderGrid() {
+        const container = document.getElementById('gridContainer');
+        container.innerHTML = '';
+
+        if (currentMembers.length === 0) {
+          container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #999; padding: 20px;">該班別無人員資料</div>';
+          return;
+        }
+
+        currentMembers.forEach((m, index) => {
+          const card = document.createElement('div');
+          const totalScore = m.currentScore + m.points;
+
+          let colorClass = '';
+          if (m.points > 0) colorClass = `p-${m.points}`;
+          if (m.points < 0) colorClass = `m-${Math.abs(m.points)}`;
+
+          card.className = `card ${colorClass}`;
+          card.onclick = () => { changePoints(index, 1); };
+          card.oncontextmenu = (e) => {
+            e.preventDefault();
+            changePoints(index, -1);
+          };
+
+          const changeText = m.points !== 0 ? ` (${m.points > 0 ? '+' : ''}${m.points})` : '';
+
+          card.innerHTML = `
+            <div>
+              <div class="name">${m.name}</div>
+              <div class="seat">${m.seatNo ? m.seatNo + '號' : ''}</div>
+              <div class="card-reason">${m.points !== 0 ? '📌 ' + (m.reason || selectedReason) : ''}</div>
+            </div>
+            <div>
+              <div class="point-badge">總分: ${totalScore}${changeText}</div>
+              <div class="btn-group">
+                <button class="mini-btn" ${m.points <= MIN_POINTS ? 'disabled' : ''} onclick="event.stopPropagation(); changePoints(${index}, -1)">-1</button>
+                <button class="mini-btn" onclick="event.stopPropagation(); resetPoints(${index})">重置</button>
+                <button class="mini-btn" ${m.points >= MAX_POINTS ? 'disabled' : ''} onclick="event.stopPropagation(); changePoints(${index}, 1)">+1</button>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      function changePoints(index, delta) {
+        const newPoints = currentMembers[index].points + delta;
+        if (newPoints >= MIN_POINTS && newPoints <= MAX_POINTS) {
+          currentMembers[index].points = newPoints;
+          currentMembers[index].reason = (newPoints !== 0) ? selectedReason : '';
+          renderGrid();
+        }
+      }
+
+      function resetPoints(index) {
+        currentMembers[index].points = 0;
+        currentMembers[index].reason = '';
+        renderGrid();
+      }
+
+      async function submitData() {
+        const updatedCount = currentMembers.filter(m => m.points !== 0).length;
+        if (updatedCount === 0) return alert('尚未對任何人員進行加減分！');
+
+        if (!confirm(`確認提交 ${updatedCount} 筆加減分與事由更新？`)) return;
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 處理中...';
+
+        try {
+          const res = await submitBatchPoints(currentMembers);
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 提交';
+          if (res.success) {
+            alert(`成功更新名冊中 ${res.count} 位學員的分數與事由！`);
+            loadMembers();
+          }
+        } catch (err) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 提交';
+          alert('提交失敗：' + err.message);
+        }
+      }
+    </script>
+  </body>
+</html>

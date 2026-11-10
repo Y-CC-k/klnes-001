@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/common.js"></script>
+    <style>
+      :root {
+        --primary-color: #3f51b5;
+        --primary-dark: #303f9f;
+        --primary-light: #e8eaf6;
+        --primary-border: #c5cae9;
+      }
+
+      * { box-sizing: border-box; touch-action: manipulation; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 12px; background-color: #f0f2f5; max-width: 1200px; margin: 0 auto;
+      }
+
+      .login-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px;
+      }
+
+      .login-card {
+        background: white; padding: 25px 20px; border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 100%; max-width: 320px;
+      }
+
+      .login-card h3 { margin: 0 0 15px 0; color: #222; font-size: 20px; }
+      .login-input { width: 100%; padding: 12px; margin-bottom: 12px; font-size: 16px; border: 2px solid #ccc; border-radius: 8px; }
+      .login-card button { width: 100%; padding: 12px; font-size: 16px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+      .control-panel {
+        background: white; padding: 10px 14px; border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px;
+      }
+
+      .single-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+      }
+
+      select.nav-select {
+        background-color: var(--primary-light); color: var(--primary-dark);
+        border: 2px solid var(--primary-border); font-weight: bold; font-size: 15px;
+        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 110px;
+      }
+
+      .teacher-tag {
+        color: var(--primary-dark); font-weight: bold; background-color: var(--primary-light);
+        padding: 6px 10px; border-radius: 8px; font-size: 14px; border: 1.5px solid var(--primary-border);
+        white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+      }
+
+      select, button.action-btn {
+        padding: 6px 12px; font-size: 15px; border-radius: 8px; border: 2px solid #ccc; height: 40px; font-weight: bold;
+      }
+
+      select { background-color: white; cursor: pointer; flex: 1; min-width: 100px; }
+
+      .action-btn {
+        color: white; border: none; cursor: pointer; font-weight: bold;
+        white-space: nowrap; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px;
+      }
+
+      .btn-submit { background-color: #2e7d32; }
+      .btn-save-seats { background-color: #f57c00; }
+      .btn-logout { background-color: #757575; padding: 6px 10px; border: none; }
+
+      .blackboard {
+        background: #263238; color: white; text-align: center; padding: 8px;
+        font-weight: bold; border-radius: 8px; margin-bottom: 15px; letter-spacing: 4px;
+        box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+      }
+
+      .seat-grid {
+        display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+      }
+
+      .seat-card {
+        background: white; border: 3px solid #b0bec5; border-radius: 12px; padding: 8px 4px;
+        text-align: center; transition: all 0.15s;
+        min-height: 110px; display: flex; flex-direction: column; justify-content: space-between;
+        position: relative;
+      }
+
+      .seat-num {
+        position: absolute; top: 4px; left: 6px; font-size: 11px; color: #888; font-weight: bold;
+      }
+
+      .student-select {
+        width: 100%; font-size: 14px; font-weight: bold; border: 1.5px solid #bbb;
+        border-radius: 6px; padding: 4px 2px; margin-top: 18px; background-color: #fff;
+        text-align: center;
+      }
+
+      .status-badge-btn {
+        display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: bold;
+        border-radius: 12px; cursor: pointer; border: none; width: 100%; margin-top: 4px;
+      }
+      .status-出席 { background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; }
+      .status-遲到 { background: #fff9c4; color: #f57f17; border: 1px solid #fbc02d; }
+      .status-請假 { background: #e3f2fd; color: #0d47a1; border: 1px solid #64b5f6; }
+      .status-缺席 { background: #ffebee; color: #c62828; border: 1px solid #e57373; }
+
+      @media (max-width: 768px) {
+        .seat-grid { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+        .seat-card { padding: 6px 2px; min-height: 95px; }
+        .student-select { font-size: 12px; margin-top: 14px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <div id="loginOverlay" class="login-overlay">
+      <div class="login-card">
+        <h3><i class="fa-solid fa-user-lock"></i> 教師身分驗證</h3>
+        <input type="text" id="accountInput" class="login-input" placeholder="請輸入帳號" autocomplete="off">
+        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼" onkeypress="if(event.key==='Enter') verifyLogin()">
+        <button id="loginBtn" onclick="verifyLogin()"><i class="fa-solid fa-right-to-bracket"></i> 登入系統</button>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="single-row">
+        <select class="nav-select" onchange="navigateToPage(this.value)">
+          <option value="SeatMap" selected>🪑 座位表</option>
+          <option value="Attendance">📋 點名專區</option>
+          <option value="Points">⭐ 加分專區</option>
+          <option value="Picker">🎲 抽籤專區</option>
+        </select>
+
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+          <span id="teacherNameDisplay" class="teacher-tag" style="display: none;"></span>
+          <select id="classSelect" onchange="loadMembers()">
+            <option value="">-- 請先登入 --</option>
+          </select>
+        </div>
+
+        <button id="saveSeatsBtn" class="action-btn btn-save-seats" onclick="saveSeats()">
+          <i class="fa-solid fa-floppy-disk"></i> 儲存座位
+        </button>
+        <button id="submitBtn" class="action-btn btn-submit" onclick="submitAttendance()">
+          <i class="fa-solid fa-paper-plane"></i> 提交點名
+        </button>
+        <button id="logoutBtn" class="action-btn btn-logout" title="登出" onclick="logout()" style="display:none;">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="blackboard">══ 講台 / 黑板區 ══</div>
+
+    <div id="seatGrid" class="seat-grid"></div>
+
+    <script>
+      const TOTAL_SEATS = 30;
+      const STATUS_CYCLE = ['出席', '遲到', '請假', '缺席'];
+      let currentMembers = [];
+      let seatAssignments = new Array(TOTAL_SEATS).fill('');
+
+      function getStudentKey(m) {
+        return `${m.seatNo}_${m.name}`;
+      }
+
+      async function loadMembers() {
+        const selectedClass = document.getElementById('classSelect').value;
+        const grid = document.getElementById('seatGrid');
+        if (!selectedClass) return grid.innerHTML = '';
+
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> 載入座位表...</div>';
+
+        try {
+          const members = await getMembersByClass(selectedClass);
+          currentMembers = members;
+          seatAssignments = new Array(TOTAL_SEATS).fill('');
+
+          members.forEach(m => {
+            let idx = (m.seatIndex && m.seatIndex <= TOTAL_SEATS) ? m.seatIndex - 1 : -1;
+            const key = getStudentKey(m);
+            if (idx >= 0 && !seatAssignments[idx]) {
+              seatAssignments[idx] = key;
+            } else {
+              const emptyIdx = seatAssignments.findIndex(s => s === '');
+              if (emptyIdx !== -1) seatAssignments[emptyIdx] = key;
+            }
+          });
+
+          renderGrid();
+        } catch (e) {
+          alert('載入失敗：' + e.message);
+        }
+      }
+
+      function renderGrid() {
+        const grid = document.getElementById('seatGrid');
+        grid.innerHTML = '';
+
+        for (let i = 0; i < TOTAL_SEATS; i++) {
+          const card = document.createElement('div');
+          card.className = 'seat-card';
+
+          const selectedKey = seatAssignments[i];
+          const student = currentMembers.find(m => getStudentKey(m) === selectedKey);
+
+          let selectHtml = `<select class="student-select" onchange="onSeatChange(${i}, this.value)">`;
+          selectHtml += `<option value="">(空位)</option>`;
+
+          currentMembers.forEach(m => {
+            const key = getStudentKey(m);
+            const isSelected = (key === selectedKey) ? 'selected' : '';
+            selectHtml += `<option value="${key}" ${isSelected}>${m.seatNo ? m.seatNo + '號 ' : ''}${m.name}</option>`;
+          });
+          selectHtml += `</select>`;
+
+          let statusBtnHtml = '';
+          if (student) {
+            statusBtnHtml = `<button class="status-badge-btn status-${student.status}" onclick="toggleStatus('${selectedKey}')">${student.status}</button>`;
+          } else {
+            statusBtnHtml = `<div style="height: 25px;"></div>`;
+          }
+
+          card.innerHTML = `
+            <span class="seat-num">Pos ${i + 1}</span>
+            ${selectHtml}
+            ${statusBtnHtml}
+          `;
+
+          grid.appendChild(card);
+        }
+      }
+
+      function onSeatChange(seatIdx, newKey) {
+        if (newKey !== '') {
+          const oldIdx = seatAssignments.findIndex((k, idx) => k === newKey && idx !== seatIdx);
+          if (oldIdx !== -1) seatAssignments[oldIdx] = '';
+        }
+        seatAssignments[seatIdx] = newKey;
+        renderGrid();
+      }
+
+      function toggleStatus(studentKey) {
+        const student = currentMembers.find(m => getStudentKey(m) === studentKey);
+        if (!student) return;
+
+        const nextIndex = (STATUS_CYCLE.indexOf(student.status) + 1) % STATUS_CYCLE.length;
+        student.status = STATUS_CYCLE[nextIndex];
+        renderGrid();
+      }
+
+      async function saveSeats() {
+        const selectedClass = document.getElementById('classSelect').value;
+        if (!selectedClass) return alert('請先選擇班別！');
+
+        const seatList = [];
+        seatAssignments.forEach((key, idx) => {
+          if (key) {
+            const student = currentMembers.find(m => getStudentKey(m) === key);
+            if (student) {
+              seatList.push({
+                seatNo: student.seatNo,
+                name: student.name,
+                seatIndex: idx + 1
+              });
+            }
+          }
+        });
+
+        const saveBtn = document.getElementById('saveSeatsBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 儲存中...';
+
+        try {
+          await updateSeatMap(selectedClass, seatList);
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 儲存座位';
+          alert('已成功儲存全新座位安排至資料庫！');
+        } catch (err) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 儲存座位';
+          alert('儲存失敗：' + err.message);
+        }
+      }
+
+      async function submitAttendance() {
+        if (currentMembers.length === 0) return alert('沒有可提交的點名資料！');
+
+        if (!confirm(`確認提交全班同學的點名狀態？`)) return;
+
+        try {
+          const res = await submitBatchAttendance(currentMembers);
+          alert(`成功寫入 ${res.count} 筆點名紀錄！`);
+        } catch (err) {
+          alert('提交失敗：' + err.message);
+        }
+      }
+    </script>
+  </body>
+</html>
