@@ -73,11 +73,23 @@ async function initPage() {
   return true;
 }
 
+// ---------- Helpers for school_students ----------
+function parseClassName(fullClassName) {
+  // "5年1班" -> { grade: 5, classNum: 1 }
+  const m = String(fullClassName).match(/^(\d+)年(\d+)班$/);
+  if (!m) return null;
+  return { grade: Number(m[1]), classNum: Number(m[2]) };
+}
+
+function classDisplayName(grade, classNum) {
+  return `${grade}年${classNum}班`;
+}
+
 // ---------- Data helpers ----------
 async function fetchClassList() {
-  const { data, error } = await sb.from('CLASS_students').select('grade, class_name');
+  const { data, error } = await sb.from('school_students').select('grade, class');
   if (error) throw error;
-  const set = new Set((data || []).map(r => r.grade + r.class_name));
+  const set = new Set((data || []).map(r => classDisplayName(r.grade, r.class)));
   return Array.from(set).filter(Boolean).sort();
 }
 
@@ -107,32 +119,52 @@ function todayRangeISO() {
 }
 
 async function getMembersByClass(fullClassName) {
-  const { data, error } = await sb.from('CLASS_students').select('*').eq('full_class_name', fullClassName);
-  if (error) throw error;
+  const parsed = parseClassName(fullClassName);
+  if (!parsed) throw new Error('班級格式錯誤：' + fullClassName);
+
+  const { data: students, error: sErr } = await sb.from('school_students')
+    .select('*')
+    .eq('grade', parsed.grade)
+    .eq('class', parsed.classNum);
+  if (sErr) throw sErr;
+
+  const ids = (students || []).map(s => s.id);
+  let stateMap = {};
+  if (ids.length > 0) {
+    const { data: states } = await sb.from('CLASS_student_state').select('*').in('student_id', ids);
+    (states || []).forEach(st => { stateMap[st.student_id] = st; });
+  }
 
   const { start, end } = todayRangeISO();
   const { data: att } = await sb.from('CLASS_attendance').select('*')
     .eq('full_class_name', fullClassName)
     .gte('recorded_at', start).lt('recorded_at', end);
 
-  const map = {};
+  const attMap = {};
   (att || []).forEach(r => {
-    map[`${r.grade}_${r.class_name}_${r.seat_no}_${r.name}`] = r.status;
+    attMap[`${r.grade}_${r.class_name}_${r.seat_no}_${r.name}`] = r.status;
   });
 
-  return (data || []).map((r, idx) => {
-    const key = `${r.grade}_${r.class_name}_${r.seat_no}_${r.name}`;
+  return (students || []).map((s, idx) => {
+    const st = stateMap[s.id] || {};
+    const gradeStr = String(s.grade);
+    const className = `年${s.class}班`;
+    const seatNo = String(s.seat_no);
+    const name = s.name;
+    const key = `${gradeStr}_${className}_${seatNo}_${name}`;
+    const seatIndex = st.seat_index || s.seat_no || (idx + 1);
+    const currentScore = (typeof st.score === 'number') ? st.score : 0;
     return {
-      grade: r.grade,
-      className: r.class_name,
-      seatNo: r.seat_no,
-      name: r.name,
-      seatIndex: r.seat_index || (idx + 1),
-      currentScore: r.score || 0,
-      fullClassName: r.full_class_name,
-      status: map[key] || '出席',
-      hasTodayRecord: !!map[key],
-      _id: r.id
+      grade: gradeStr,
+      className: className,
+      seatNo: seatNo,
+      name: name,
+      seatIndex: seatIndex,
+      currentScore: currentScore,
+      fullClassName: fullClassName,
+      status: attMap[key] || '出席',
+      hasTodayRecord: !!attMap[key],
+      _id: s.id
     };
   });
 }
@@ -157,9 +189,11 @@ async function submitBatchPoints(members) {
   for (const m of members) {
     if (m.points !== 0) {
       const newScore = m.currentScore + m.points;
-      const { error } = await sb.from('CLASS_students').update({ score: newScore })
-        .eq('grade', m.grade).eq('class_name', m.className)
-        .eq('seat_no', m.seatNo).eq('name', m.name);
+      const { error } = await sb.from('CLASS_student_state').upsert({
+        student_id: m._id,
+        score: newScore,
+        seat_index: m.seatIndex
+      }, { onConflict: 'student_id' });
       if (error) throw error;
       logRows.push({
         grade: m.grade,
@@ -181,11 +215,29 @@ async function submitBatchPoints(members) {
 }
 
 async function updateSeatMap(fullClassName, seatList) {
+  // Need current score for each student to preserve; fetch state
+  const parsed = parseClassName(fullClassName);
+  const { data: students } = await sb.from('school_students')
+    .select('id, seat_no, name').eq('grade', parsed.grade).eq('class', parsed.classNum);
+  const idByNameSeat = {};
+  (students || []).forEach(s => { idByNameSeat[`${s.seat_no}_${s.name}`] = s.id; });
+
+  // fetch existing state for scores
+  const ids = Object.values(idByNameSeat);
+  let scoreMap = {};
+  if (ids.length > 0) {
+    const { data: states } = await sb.from('CLASS_student_state').select('*').in('student_id', ids);
+    (states || []).forEach(st => { scoreMap[st.student_id] = st.score; });
+  }
+
   for (const item of seatList) {
-    const { error } = await sb.from('CLASS_students').update({ seat_index: item.seatIndex })
-      .eq('full_class_name', fullClassName)
-      .eq('seat_no', item.seatNo)
-      .eq('name', item.name);
+    const sid = idByNameSeat[`${item.seatNo}_${item.name}`];
+    if (!sid) continue;
+    const { error } = await sb.from('CLASS_student_state').upsert({
+      student_id: sid,
+      seat_index: item.seatIndex,
+      score: (typeof scoreMap[sid] === 'number') ? scoreMap[sid] : 0
+    }, { onConflict: 'student_id' });
     if (error) throw error;
   }
   return { success: true };

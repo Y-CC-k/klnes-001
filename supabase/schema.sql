@@ -47,6 +47,14 @@ create table if not exists public.CLASS_points_log (
   full_class_name text generated always as (grade || class_name) stored
 );
 
+-- Student state overlay (scores + seat positions) for school_students
+create table if not exists public.CLASS_student_state (
+  student_id uuid primary key,
+  score int default 0,
+  seat_index int,
+  updated_at timestamptz default now()
+);
+
 -- Enable RLS
 alter table public.CLASS_teachers enable row level security;
 alter table public.CLASS_students enable row level security;
@@ -60,6 +68,7 @@ create policy "teachers update own" on public.CLASS_teachers for update to authe
 create policy "auth all students" on public.CLASS_students for all to authenticated using (true) with check (true);
 create policy "auth all attendance" on public.CLASS_attendance for all to authenticated using (true) with check (true);
 create policy "auth all points_log" on public.CLASS_points_log for all to authenticated using (true) with check (true);
+create policy "auth all student_state" on public.CLASS_student_state for all to authenticated using (true) with check (true);
 
 -- Indexes
 create index if not exists idx_students_class on public.CLASS_students(full_class_name);

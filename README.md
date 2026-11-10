@@ -74,6 +74,8 @@ Actions workflow to publish that subfolder, or move it to its own repository.
   `teacher01@school.local`, or a full email.
 - RLS is enabled; any authenticated teacher has full access to all classes,
   matching the original app's behavior.
+- Student roster is read from the existing `public.school_students` table
+  (grade, class, seat_no, name). Scores/seat positions are stored in
+  `public.CLASS_student_state`.
 - To add more teachers, create them in Supabase Auth and insert a row into
-  `public.teachers`.
-- To import real roster data, insert rows into `public.students`.
+  `public.CLASS_teachers`.
