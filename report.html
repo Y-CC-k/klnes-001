@@ -164,7 +164,7 @@
 
         try {
           const members = await getMembersByClass(selectedClass);
-          const { data: rows, error } = await window.sb.from('CLASS_attendance')
+          const { data: rows, error } = await window.sb.from('class_attendance')
             .select('*')
             .eq('full_class_name', selectedClass)
             .eq('record_date', date);

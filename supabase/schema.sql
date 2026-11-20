@@ -2,7 +2,7 @@
 -- Run this in Supabase SQL Editor after creating your project.
 
 -- Teachers profile (linked to Supabase Auth)
-create table if not exists public.CLASS_teachers (
+create table if not exists public.class_teachers (
   id uuid primary key references auth.users(id) on delete cascade,
   username text unique not null,
   name text not null,
@@ -10,7 +10,7 @@ create table if not exists public.CLASS_teachers (
 );
 
 -- Roster (名冊)
-create table if not exists public.CLASS_students (
+create table if not exists public.class_students (
   id bigserial primary key,
   grade text not null,
   class_name text not null,
@@ -23,7 +23,7 @@ create table if not exists public.CLASS_students (
 );
 
 -- Attendance log (點名紀錄)
-create table if not exists public.CLASS_attendance (
+create table if not exists public.class_attendance (
   id bigserial primary key,
   recorded_at timestamptz default now(),
   grade text not null,
@@ -35,7 +35,7 @@ create table if not exists public.CLASS_attendance (
 );
 
 -- Points log (加分紀錄)
-create table if not exists public.CLASS_points_log (
+create table if not exists public.class_points_log (
   id bigserial primary key,
   recorded_at timestamptz default now(),
   grade text not null,
@@ -48,7 +48,7 @@ create table if not exists public.CLASS_points_log (
 );
 
 -- Student state overlay (scores + seat positions) for school_students
-create table if not exists public.CLASS_student_state (
+create table if not exists public.class_student_state (
   student_id uuid primary key,
   score int default 0,
   seat_index int,
@@ -56,34 +56,34 @@ create table if not exists public.CLASS_student_state (
 );
 
 -- Enable RLS
-alter table public.CLASS_teachers enable row level security;
-alter table public.CLASS_students enable row level security;
-alter table public.CLASS_attendance enable row level security;
-alter table public.CLASS_points_log enable row level security;
+alter table public.class_teachers enable row level security;
+alter table public.class_students enable row level security;
+alter table public.class_attendance enable row level security;
+alter table public.class_points_log enable row level security;
 
 -- Policies: any authenticated user (teacher) has full access (matches original: any valid teacher accesses all classes)
-create policy "teachers read own" on public.CLASS_teachers for select to authenticated using (auth.uid() = id);
-create policy "teachers update own" on public.CLASS_teachers for update to authenticated using (auth.uid() = id);
+create policy "teachers read own" on public.class_teachers for select to authenticated using (auth.uid() = id);
+create policy "teachers update own" on public.class_teachers for update to authenticated using (auth.uid() = id);
 
-create policy "auth all students" on public.CLASS_students for all to authenticated using (true) with check (true);
-create policy "auth all attendance" on public.CLASS_attendance for all to authenticated using (true) with check (true);
-create policy "auth all points_log" on public.CLASS_points_log for all to authenticated using (true) with check (true);
-create policy "auth all student_state" on public.CLASS_student_state for all to authenticated using (true) with check (true);
+create policy "auth all students" on public.class_students for all to authenticated using (true) with check (true);
+create policy "auth all attendance" on public.class_attendance for all to authenticated using (true) with check (true);
+create policy "auth all points_log" on public.class_points_log for all to authenticated using (true) with check (true);
+create policy "auth all student_state" on public.class_student_state for all to authenticated using (true) with check (true);
 
 -- Indexes
-create index if not exists idx_students_class on public.CLASS_students(full_class_name);
-create index if not exists idx_attendance_class_date on public.CLASS_attendance(full_class_name, recorded_at);
+create index if not exists idx_students_class on public.class_students(full_class_name);
+create index if not exists idx_attendance_class_date on public.class_attendance(full_class_name, recorded_at);
 
 -- Period (節數) column for attendance records
-alter table public.CLASS_attendance add column if not exists period text;
+alter table public.class_attendance add column if not exists period text;
 
 -- Record date (local day) column for per-day uniqueness
-alter table public.CLASS_attendance add column if not exists record_date date;
-update public.CLASS_attendance set record_date = (recorded_at at time zone 'UTC')::date where record_date is null;
+alter table public.class_attendance add column if not exists record_date date;
+update public.class_attendance set record_date = (recorded_at at time zone 'UTC')::date where record_date is null;
 
-create index if not exists idx_attendance_class_period_date on public.CLASS_attendance(full_class_name, period, recorded_at);
+create index if not exists idx_attendance_class_period_date on public.class_attendance(full_class_name, period, recorded_at);
 
 -- Ensure each class/period/day is recorded only once (no duplicate attendance)
 create unique index if not exists uq_attendance_class_period_day
-  on public.CLASS_attendance (full_class_name, coalesce(period, ''), record_date);
-create index if not exists idx_points_class on public.CLASS_points_log(full_class_name);
+  on public.class_attendance (full_class_name, coalesce(period, ''), record_date);
+create index if not exists idx_points_class on public.class_points_log(full_class_name);

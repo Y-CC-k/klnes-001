@@ -17,7 +17,7 @@ async function getSession() {
 async function getTeacher() {
   const session = await getSession();
   if (!session) return null;
-  const { data } = await sb.from('CLASS_teachers').select('*').eq('id', session.user.id).single();
+  const { data } = await sb.from('class_teachers').select('*').eq('id', session.user.id).single();
   return data;
 }
 
@@ -139,12 +139,12 @@ async function getMembersByClass(fullClassName, period) {
   const ids = (students || []).map(s => s.id);
   let stateMap = {};
   if (ids.length > 0) {
-    const { data: states } = await sb.from('CLASS_student_state').select('*').in('student_id', ids);
+    const { data: states } = await sb.from('class_student_state').select('*').in('student_id', ids);
     (states || []).forEach(st => { stateMap[st.student_id] = st; });
   }
 
   const today = todayDateISO();
-  let attQuery = sb.from('CLASS_attendance').select('*')
+  let attQuery = sb.from('class_attendance').select('*')
     .eq('full_class_name', fullClassName)
     .eq('record_date', today);
   if (period) attQuery = attQuery.eq('period', period);
@@ -184,7 +184,7 @@ async function submitBatchAttendance(members, period) {
   const today = todayDateISO();
   // Remove today's existing records for this class/period to avoid duplicates on "update"
   if (fullClassName) {
-    let delQuery = sb.from('CLASS_attendance').delete()
+    let delQuery = sb.from('class_attendance').delete()
       .eq('full_class_name', fullClassName)
       .eq('record_date', today);
     if (period) delQuery = delQuery.eq('period', period);
@@ -201,7 +201,7 @@ async function submitBatchAttendance(members, period) {
     period: period || null,
     record_date: today
   }));
-  const { error } = await sb.from('CLASS_attendance').insert(rows);
+  const { error } = await sb.from('class_attendance').insert(rows);
   if (error) throw error;
   return { success: true, count: rows.length };
 }
@@ -212,7 +212,7 @@ async function submitBatchPoints(members) {
   for (const m of members) {
     if (m.points !== 0) {
       const newScore = m.currentScore + m.points;
-      const { error } = await sb.from('CLASS_student_state').upsert({
+      const { error } = await sb.from('class_student_state').upsert({
         student_id: m._id,
         score: newScore,
         seat_index: m.seatIndex
@@ -231,7 +231,7 @@ async function submitBatchPoints(members) {
     }
   }
   if (logRows.length > 0) {
-    const { error } = await sb.from('CLASS_points_log').insert(logRows);
+    const { error } = await sb.from('class_points_log').insert(logRows);
     if (error) throw error;
   }
   return { success: true, count: updatedCount };
@@ -249,14 +249,14 @@ async function updateSeatMap(fullClassName, seatList) {
   const ids = Object.values(idByNameSeat);
   let scoreMap = {};
   if (ids.length > 0) {
-    const { data: states } = await sb.from('CLASS_student_state').select('*').in('student_id', ids);
+    const { data: states } = await sb.from('class_student_state').select('*').in('student_id', ids);
     (states || []).forEach(st => { scoreMap[st.student_id] = st.score; });
   }
 
   for (const item of seatList) {
     const sid = idByNameSeat[`${item.seatNo}_${item.name}`];
     if (!sid) continue;
-    const { error } = await sb.from('CLASS_student_state').upsert({
+    const { error } = await sb.from('class_student_state').upsert({
       student_id: sid,
       seat_index: item.seatIndex,
       score: (typeof scoreMap[sid] === 'number') ? scoreMap[sid] : 0
