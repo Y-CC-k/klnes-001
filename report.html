@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="js/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/common.js?v=3"></script>
+    <script src="js/common.js?v=4"></script>
     <style>
       :root {
         --primary-color: #5d4037;
@@ -123,7 +123,9 @@
           <select id="classSelect">
             <option value="">-- 請先登入 --</option>
           </select>
-          <input type="date" id="dateInput">
+          <input type="date" id="startDate" title="起始日期">
+          <span style="font-size:13px;">～</span>
+          <input type="date" id="endDate" title="結束日期">
           <button class="action-btn btn-query" onclick="loadReport()">
             <i class="fa-solid fa-magnifying-glass"></i> 查詢
           </button>
@@ -136,11 +138,12 @@
     </div>
 
     <div class="report-container">
+      <div id="rangeLabel" style="font-weight:bold; color:var(--primary-dark); margin-bottom:10px; display:none;"></div>
       <div id="summaryGrid" class="summary-grid"></div>
       <div style="overflow-x: auto;">
         <table class="report-table" id="detailTable"></table>
       </div>
-      <div id="emptyMsg" style="text-align:center; color:#999; padding:20px;">請選擇班別與日期後按「查詢」</div>
+      <div id="emptyMsg" style="text-align:center; color:#999; padding:20px;">請選擇班別與日期範圍後按「查詢」</div>
     </div>
 
     <script>
@@ -149,16 +152,20 @@
 
       async function loadReport() {
         const selectedClass = document.getElementById('classSelect').value;
-        const date = document.getElementById('dateInput').value;
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
         const summaryGrid = document.getElementById('summaryGrid');
         const detailTable = document.getElementById('detailTable');
         const emptyMsg = document.getElementById('emptyMsg');
+        const rangeLabel = document.getElementById('rangeLabel');
 
         if (!selectedClass) return alert('請先選擇班別！');
-        if (!date) return alert('請選擇日期！');
+        if (!start || !end) return alert('請選擇日期範圍！');
+        if (start > end) return alert('起始日期不可晚於結束日期！');
 
         summaryGrid.innerHTML = '';
         detailTable.innerHTML = '';
+        rangeLabel.style.display = 'none';
         emptyMsg.style.display = 'block';
         emptyMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 載入中...';
 
@@ -167,26 +174,27 @@
           const { data: rows, error } = await window.sb.from('class_attendance')
             .select('*')
             .eq('full_class_name', selectedClass)
-            .eq('record_date', date);
+            .gte('record_date', start)
+            .lte('record_date', end)
+            .order('record_date', { ascending: true });
           if (error) throw error;
 
-          // map: studentKey -> { period -> status }
-          const statusMap = {};
-          members.forEach(m => { statusMap[`${m.seatNo}_${m.name}`] = {}; });
-          (rows || []).forEach(r => {
-            const key = `${r.seat_no}_${r.name}`;
-            if (!statusMap[key]) statusMap[key] = {};
-            statusMap[key][r.period] = r.status;
-          });
+          if (!rows || rows.length === 0) {
+            emptyMsg.textContent = '該日期範圍沒有任何點名紀錄。';
+            return;
+          }
 
-          // summary per period
+          rangeLabel.textContent = `${selectedClass}　${start} ～ ${end}　（共 ${rows.length} 筆）`;
+          rangeLabel.style.display = 'block';
+
+          // summary per period (across the whole range)
           PERIODS.forEach(p => {
             const counts = { '出席':0,'遲到':0,'請假':0,'缺席':0 };
             let total = 0;
-            (rows || []).forEach(r => {
+            rows.forEach(r => {
               if (r.period === p && counts[r.status] !== undefined) { counts[r.status]++; total++; }
             });
-            if (total === 0) return; // skip periods with no records
+            if (total === 0) return;
             const card = document.createElement('div');
             card.className = 'summary-card';
             card.innerHTML = `
@@ -200,23 +208,40 @@
             summaryGrid.appendChild(card);
           });
 
-          if (summaryGrid.children.length === 0) {
-            emptyMsg.style.display = 'block';
-            emptyMsg.textContent = '該日期沒有任何點名紀錄。';
-            return;
-          }
+          // dates + periods present, ordered by date then period order
+          const dates = Array.from(new Set(rows.map(r => r.record_date))).sort();
+          const periodsByDate = {};
+          dates.forEach(d => {
+            periodsByDate[d] = PERIODS.filter(p => rows.some(r => r.record_date === d && r.period === p));
+          });
 
-          // detail table
-          const headerPeriods = PERIODS.filter(p => (rows || []).some(r => r.period === p));
-          let html = '<thead><tr><th>座號</th><th>姓名</th>';
-          headerPeriods.forEach(p => { html += `<th>${p}</th>`; });
+          // map: student -> date_period -> status
+          const statusMap = {};
+          members.forEach(m => { statusMap[`${m.seatNo}_${m.name}`] = {}; });
+          rows.forEach(r => {
+            const key = `${r.seat_no}_${r.name}`;
+            if (!statusMap[key]) statusMap[key] = {};
+            statusMap[key][`${r.record_date}_${r.period}`] = r.status;
+          });
+
+          // two-level header table
+          let html = '<thead><tr><th rowspan="2">座號</th><th rowspan="2">姓名</th>';
+          dates.forEach(d => {
+            html += `<th colspan="${periodsByDate[d].length}">${d}</th>`;
+          });
+          html += '</tr><tr>';
+          dates.forEach(d => {
+            periodsByDate[d].forEach(p => { html += `<th>${p}</th>`; });
+          });
           html += '</tr></thead><tbody>';
           members.forEach(m => {
             const key = `${m.seatNo}_${m.name}`;
             html += `<tr><td>${m.seatNo}</td><td class="name">${m.name}</td>`;
-            headerPeriods.forEach(p => {
-              const st = (statusMap[key] || {})[p];
-              html += `<td class="${st ? 'status-' + st : ''}">${st || '-'}</td>`;
+            dates.forEach(d => {
+              periodsByDate[d].forEach(p => {
+                const st = (statusMap[key] || {})[`${d}_${p}`];
+                html += `<td class="${st ? 'status-' + st : ''}">${st || '-'}</td>`;
+              });
             });
             html += '</tr>';
           });
@@ -229,13 +254,14 @@
         }
       }
 
-      // default date = today
+      // default range = today ~ today
       window.addEventListener('DOMContentLoaded', () => {
-        const di = document.getElementById('dateInput');
-        if (di && !di.value) {
-          const d = new Date();
-          di.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        }
+        const d = new Date();
+        const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        ['startDate','endDate'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el && !el.value) el.value = today;
+        });
       });
     </script>
   </body>
