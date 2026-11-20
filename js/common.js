@@ -197,7 +197,6 @@ async function submitBatchAttendance(members, period) {
     seat_no: m.seatNo,
     name: m.name,
     status: m.status,
-    full_class_name: m.fullClassName,
     period: period || null,
     record_date: today
   }));
@@ -224,8 +223,7 @@ async function submitBatchPoints(members) {
         seat_no: m.seatNo,
         name: m.name,
         points: m.points,
-        reason: m.reason || '未填寫',
-        full_class_name: m.fullClassName
+        reason: m.reason || '未填寫'
       });
       updatedCount++;
     }
