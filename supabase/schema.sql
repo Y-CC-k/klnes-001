@@ -83,7 +83,8 @@ update public.class_attendance set record_date = (recorded_at at time zone 'UTC'
 
 create index if not exists idx_attendance_class_period_date on public.class_attendance(full_class_name, period, recorded_at);
 
--- Ensure each class/period/day is recorded only once (no duplicate attendance)
-create unique index if not exists uq_attendance_class_period_day
-  on public.class_attendance (full_class_name, coalesce(period, ''), record_date);
+-- Unique per student per class/period/day (prevents duplicate student records)
+drop index if exists public.uq_attendance_class_period_day;
+create unique index uq_attendance_class_period_day
+  on public.class_attendance (full_class_name, coalesce(period, ''), record_date, seat_no, name);
 create index if not exists idx_points_class on public.class_points_log(full_class_name);
