@@ -180,27 +180,29 @@ async function getMembersByClass(fullClassName, period) {
 }
 
 async function submitBatchAttendance(members, period) {
-  const fullClassName = members.length ? members[0].fullClassName : null;
   const today = todayDateISO();
-  // Remove today's existing records for this class/period to avoid duplicates on "update"
-  if (fullClassName) {
-    let delQuery = sb.from('class_attendance').delete()
-      .eq('full_class_name', fullClassName)
-      .eq('record_date', today);
-    if (period) delQuery = delQuery.eq('period', period);
-    const { error: delErr } = await delQuery;
-    if (delErr) throw delErr;
-  }
-  const rows = members.map(m => ({
-    grade: m.grade,
-    class_name: m.className,
-    seat_no: m.seatNo,
-    name: m.name,
-    status: m.status,
-    period: period || null,
-    record_date: today
-  }));
-  const { error } = await sb.from('class_attendance').insert(rows);
+  const seen = new Set();
+  const rows = members
+    .filter(m => {
+      const key = `${m.seatNo}_${m.name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map(m => ({
+      grade: m.grade,
+      class_name: m.className,
+      seat_no: m.seatNo,
+      name: m.name,
+      status: m.status,
+      period: period || '',
+      record_date: today
+    }));
+
+  if (rows.length === 0) return { success: true, count: 0 };
+
+  const { error } = await sb.from('class_attendance')
+    .upsert(rows, { onConflict: 'grade,class_name,seat_no,name,period,record_date' });
   if (error) throw error;
   return { success: true, count: rows.length };
 }

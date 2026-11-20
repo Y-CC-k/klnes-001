@@ -60,6 +60,7 @@ alter table public.class_teachers enable row level security;
 alter table public.class_students enable row level security;
 alter table public.class_attendance enable row level security;
 alter table public.class_points_log enable row level security;
+alter table public.class_student_state enable row level security;
 
 -- Policies: any authenticated user (teacher) has full access (matches original: any valid teacher accesses all classes)
 create policy "teachers read own" on public.class_teachers for select to authenticated using (auth.uid() = id);
@@ -83,8 +84,9 @@ update public.class_attendance set record_date = (recorded_at at time zone 'UTC'
 
 create index if not exists idx_attendance_class_period_date on public.class_attendance(full_class_name, period, recorded_at);
 
--- Unique per student per class/period/day (prevents duplicate student records)
+-- Unique per student per class/period/day (plain columns, used by upsert onConflict)
 drop index if exists public.uq_attendance_class_period_day;
-create unique index uq_attendance_class_period_day
-  on public.class_attendance (full_class_name, coalesce(period, ''), record_date, seat_no, name);
+alter table public.class_attendance drop constraint if exists uq_attendance_class_period_day;
+alter table public.class_attendance add constraint uq_attendance_class_period_day
+  unique (grade, class_name, seat_no, name, period, record_date);
 create index if not exists idx_points_class on public.class_points_log(full_class_name);
