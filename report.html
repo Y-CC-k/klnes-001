@@ -42,30 +42,32 @@
       }
 
       .single-row {
-        display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; flex-wrap: wrap;
+        display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; flex-wrap: nowrap;
       }
 
       select.nav-select {
         background-color: var(--primary-light); color: var(--primary-dark);
         border: 2px solid var(--primary-border); font-weight: bold; font-size: 15px;
-        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 110px;
+        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 110px; flex-shrink: 0;
       }
 
       .teacher-tag {
         color: var(--primary-dark); font-weight: bold; background-color: var(--primary-light);
         padding: 6px 10px; border-radius: 8px; font-size: 14px; border: 1.5px solid var(--primary-border);
-        white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+        white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
       }
 
       select, input[type="date"], button.action-btn {
-        padding: 6px 12px; font-size: 15px; border-radius: 8px; border: 2px solid #ccc; height: 40px; font-weight: bold;
+        padding: 6px 10px; font-size: 15px; border-radius: 8px; border: 2px solid #ccc; height: 40px; font-weight: bold;
       }
 
-      select { background-color: white; cursor: pointer; flex: 1; min-width: 100px; }
+      select { background-color: white; cursor: pointer; flex: 1; min-width: 90px; }
+      input[type="date"] { flex-shrink: 0; width: 138px; padding: 6px 4px; font-size: 14px; }
+      .single-row > span { flex-shrink: 0; }
 
       .action-btn {
         color: white; border: none; cursor: pointer; font-weight: bold;
-        white-space: nowrap; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px;
+        white-space: nowrap; transition: background-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0;
       }
 
       .btn-query { background-color: var(--primary-color); }
@@ -118,7 +120,7 @@
           <option value="SeatMap">🪑 座位表</option>
         </select>
 
-        <div style="display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: nowrap;">
           <span id="teacherNameDisplay" class="teacher-tag" style="display: none;"></span>
           <select id="classSelect">
             <option value="">-- 請先登入 --</option>
