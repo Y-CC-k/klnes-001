@@ -48,7 +48,7 @@
       select.nav-select {
         background-color: var(--primary-light); color: var(--primary-dark);
         border: 2px solid var(--primary-border); font-weight: bold; font-size: 15px;
-        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 110px;
+        border-radius: 8px; padding: 6px 8px; cursor: pointer; height: 40px; min-width: 80px;
       }
 
       .teacher-tag {
@@ -129,11 +129,11 @@
     <div class="control-panel">
       <div class="single-row">
         <select class="nav-select" onchange="navigateToPage(this.value)">
-          <option value="SeatMap" selected>🪑 座位表</option>
-          <option value="Report">📊 節數統計</option>
-          <option value="Attendance">📋 點名專區</option>
-          <option value="Points">⭐ 加分專區</option>
-          <option value="Picker">🎲 抽籤專區</option>
+          <option value="SeatMap" selected>🪑 座位</option>
+          <option value="Report">📊 統計</option>
+          <option value="Attendance">📋 點名</option>
+          <option value="Points">⭐ 加分</option>
+          <option value="Picker">🎲 抽籤</option>
         </select>
 
         <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
@@ -141,7 +141,7 @@
           <select id="classSelect" onchange="loadMembers()">
             <option value="">-- 請先登入 --</option>
           </select>
-          <select id="periodSelect" onchange="loadMembers()" style="min-width: 110px;">
+          <select id="periodSelect" onchange="loadMembers()" style="min-width: 80px;">
             <option value="早修活動">早修活動</option>
             <option value="第一節">第一節</option>
             <option value="第二節">第二節</option>
